@@ -150,12 +150,22 @@ async def cancel_index_wizard(bot: Client, message: Message):
     await safe_reply(message, "❌ Index wizard cancelled.")
 
 
-@Client.on_message(filters.text & filters.private & filters.user(ADMINS))
+@Client.on_message(
+    filters.text
+    & filters.private
+    & filters.user(ADMINS)
+    & ~filters.command([
+        "start","help","index","cancelindex","setskip",
+        "total","users","delete","channel","logs","logger",
+        "broadcast","cancelbroadcast",
+    ]),
+    group=1   # run AFTER all group-0 handlers — never blocks /start or search
+)
 async def index_wizard_handler(bot: Client, message: Message):
     """Handle the two-step link collection for /index."""
     uid = message.from_user.id
     if uid not in _index_state:
-        return   # not in wizard, let other handlers deal with it
+        return   # not in wizard, ignore completely
 
     step = _index_state[uid].get("step")
     text = message.text.strip()
