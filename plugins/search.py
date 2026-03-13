@@ -238,7 +238,8 @@ _IGNORE_CMDS = ["start", "help", "index", "total", "delete",
 @Client.on_message(
     filters.text
     & (filters.private | filters.group)
-    & ~filters.command(_IGNORE_CMDS)
+    & ~filters.command(_IGNORE_CMDS),
+    group=1   # group=1 so /start and other commands in group=0 always fire first
 )
 async def search_handler(bot: Client, message: Message):
     text = message.text.strip()
