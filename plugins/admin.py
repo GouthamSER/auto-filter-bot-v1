@@ -105,116 +105,146 @@ async def set_skip(bot: Client, message: Message):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Forwarded message or t.me link  →  ask to index
+#  /index  –  step-by-step: ask first link, then last link, then confirm
 # ─────────────────────────────────────────────────────────────────────────────
 
 _LINK_RE = re.compile(
     r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$"
 )
 
+# Conversation state per admin user: {"step": "first"|"last", "chat": ..., "first_id": ...}
+_index_state: dict[int, dict] = {}
 
-@Client.on_message(
-    (
-        filters.forwarded
-        | (filters.regex(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$") & filters.text)
+
+def _parse_link(text: str):
+    """Return (chat_id, msg_id) or (None, None) if invalid."""
+    match = _LINK_RE.search(text.strip())
+    if not match:
+        return None, None
+    chat_id = match.group(4)
+    msg_id  = int(match.group(5))
+    if chat_id.isnumeric():
+        chat_id = int("-100" + chat_id)
+    return chat_id, msg_id
+
+
+@Client.on_message(filters.command("index") & filters.user(ADMINS))
+async def index_cmd(bot: Client, message: Message):
+    """Start the index wizard."""
+    if _lock.locked():
+        return await safe_reply(message, "⏳ An index is already running. Wait for it to finish.")
+
+    _index_state[message.from_user.id] = {"step": "first"}
+    await safe_reply(
+        message,
+        "📥 <b>Step 1/2 — First Message</b>\n\n"
+        "Send me the <b>link of the first file</b> in the channel you want to index.\n\n"
+        "Example: <code>https://t.me/c/1234567890/1</code>\n\n"
+        "Send /cancelindex to abort."
     )
-    & filters.private
-    & filters.incoming
-)
-async def send_for_index(bot: Client, message: Message):
-    # ── Parse chat_id + last_msg_id ──────────────────────────────────────────
-    if message.text:
-        match = _LINK_RE.match(message.text.strip())
-        if not match:
-            return await message.reply("❌ Invalid link.")
-        chat_id     = match.group(4)
-        last_msg_id = int(match.group(5))
-        if chat_id.isnumeric():
-            chat_id = int("-100" + chat_id)
-    elif message.forward_from_chat and message.forward_from_chat.type == enums.ChatType.CHANNEL:
-        last_msg_id = message.forward_from_message_id
-        chat_id     = message.forward_from_chat.username or message.forward_from_chat.id
-    else:
-        return
 
-    # ── Validate the chat is accessible ─────────────────────────────────────
-    try:
-        await bot.get_chat(chat_id)
-    except ChannelInvalid:
-        return await message.reply(
-            "⚠️ This is a private channel/group.\n"
-            "Make me an <b>admin</b> there first, then try again."
+
+@Client.on_message(filters.command("cancelindex") & filters.user(ADMINS))
+async def cancel_index_wizard(bot: Client, message: Message):
+    _index_state.pop(message.from_user.id, None)
+    await safe_reply(message, "❌ Index wizard cancelled.")
+
+
+@Client.on_message(filters.text & filters.private & filters.user(ADMINS))
+async def index_wizard_handler(bot: Client, message: Message):
+    """Handle the two-step link collection for /index."""
+    uid = message.from_user.id
+    if uid not in _index_state:
+        return   # not in wizard, let other handlers deal with it
+
+    step = _index_state[uid].get("step")
+    text = message.text.strip()
+
+    # ── Step 1: First message link ────────────────────────────────────────────
+    if step == "first":
+        chat_id, first_msg_id = _parse_link(text)
+        if not chat_id:
+            return await safe_reply(message,
+                "❌ Invalid link. Send a valid t.me message link.\n"
+                "Example: <code>https://t.me/c/1234567890/1</code>"
+            )
+
+        # Validate access
+        try:
+            await bot.get_chat(chat_id)
+        except ChannelInvalid:
+            _index_state.pop(uid, None)
+            return await safe_reply(message,
+                "⚠️ Cannot access that channel. Make me an <b>admin</b> there first."
+            )
+        except Exception as e:
+            _index_state.pop(uid, None)
+            return await safe_reply(message, f"❌ Error: <code>{e}</code>")
+
+        try:
+            m = await bot.get_messages(chat_id, first_msg_id)
+            if m.empty:
+                return await safe_reply(message, "⚠️ That message is empty or deleted. Send a valid first message link.")
+        except Exception:
+            _index_state.pop(uid, None)
+            return await safe_reply(message,
+                "⚠️ Could not fetch that message. Make sure I am an admin in the channel."
+            )
+
+        _index_state[uid] = {"step": "last", "chat": chat_id, "first_id": first_msg_id}
+        await safe_reply(
+            message,
+            f"✅ <b>First message set!</b>\n"
+            f"🔗 Chat: <code>{chat_id}</code>\n"
+            f"📌 First ID: <code>{first_msg_id}</code>\n\n"
+            "📥 <b>Step 2/2 — Last Message</b>\n\n"
+            "Now send the <b>link of the last file</b> (most recent one) to index up to.\n\n"
+            "Send /cancelindex to abort."
         )
-    except (UsernameInvalid, UsernameNotModified):
-        return await message.reply("❌ Invalid link or username.")
-    except Exception as e:
-        logger.exception(e)
-        return await message.reply(f"Error: <code>{e}</code>")
 
-    try:
-        k = await bot.get_messages(chat_id, last_msg_id)
-    except Exception:
-        return await message.reply(
-            "⚠️ Could not fetch that message.\n"
-            "Make sure I am an admin in the channel/group."
-        )
+    # ── Step 2: Last message link ─────────────────────────────────────────────
+    elif step == "last":
+        chat_id   = _index_state[uid]["chat"]
+        first_id  = _index_state[uid]["first_id"]
 
-    if k.empty:
-        return await message.reply("⚠️ That message is empty or deleted.")
+        link_chat, last_msg_id = _parse_link(text)
+        if not link_chat:
+            return await safe_reply(message,
+                "❌ Invalid link. Send a valid t.me message link.\n"
+                "Example: <code>https://t.me/c/1234567890/500</code>"
+            )
 
-    # ── Admin: direct confirm ────────────────────────────────────────────────
-    if message.from_user.id in ADMINS:
+        # Ensure same channel
+        if str(link_chat) != str(chat_id):
+            return await safe_reply(message,
+                f"⚠️ This link is from a different channel (<code>{link_chat}</code>).\n"
+                f"Send a link from <code>{chat_id}</code>."
+            )
+
+        if last_msg_id < first_id:
+            # swap silently so order doesn't matter
+            first_id, last_msg_id = last_msg_id, first_id
+
+        total_range = last_msg_id - first_id + 1
+        _index_state.pop(uid, None)   # clear state
+
         buttons = [[
             InlineKeyboardButton(
-                "✅ Yes, Index",
-                callback_data=f"index#accept#{chat_id}#{last_msg_id}#{message.from_user.id}"
+                "✅ Start Indexing",
+                callback_data=f"index#accept#{chat_id}#{first_id}#{last_msg_id}#{uid}"
             ),
-            InlineKeyboardButton("❌ No", callback_data="close_data"),
+            InlineKeyboardButton("❌ Cancel", callback_data="close_data"),
         ]]
-        return await message.reply(
-            f"🗂 <b>Index this channel/group?</b>\n\n"
-            f"Chat: <code>{chat_id}</code>\n"
-            f"Up to message ID: <code>{last_msg_id}</code>\n"
-            f"Skip first: <code>{state.CURRENT}</code> messages",
+        await safe_reply(
+            message,
+            f"🗂 <b>Confirm Indexing</b>\n\n"
+            f"📡 Channel: <code>{chat_id}</code>\n"
+            f"📌 From ID: <code>{first_id}</code>\n"
+            f"📌 To ID:   <code>{last_msg_id}</code>\n"
+            f"📊 Range:   <code>{total_range}</code> messages\n\n"
+            "Tap <b>Start Indexing</b> to begin.",
             reply_markup=InlineKeyboardMarkup(buttons),
         )
-
-    # ── Non-admin: submit to LOG_CHANNEL for moderator approval ─────────────
-    if not LOG_CHANNEL:
-        return await message.reply("⚠️ Bot is not configured to accept index requests from non-admins.")
-
-    if isinstance(chat_id, int):
-        try:
-            link = (await bot.create_chat_invite_link(chat_id)).invite_link
-        except ChatAdminRequired:
-            return await message.reply(
-                "⚠️ I need <b>invite link</b> permission in that chat."
-            )
-    else:
-        link = f"@{chat_id}"
-
-    buttons = [[
-        InlineKeyboardButton(
-            "✅ Accept",
-            callback_data=f"index#accept#{chat_id}#{last_msg_id}#{message.from_user.id}"
-        ),
-        InlineKeyboardButton(
-            "❌ Reject",
-            callback_data=f"index#reject#{chat_id}#{message.id}#{message.from_user.id}"
-        ),
-    ]]
-    await bot.send_message(
-        LOG_CHANNEL,
-        f"#IndexRequest\n\n"
-        f"From: {message.from_user.mention} (<code>{message.from_user.id}</code>)\n"
-        f"Chat: <code>{chat_id}</code>\n"
-        f"Last Msg ID: <code>{last_msg_id}</code>\n"
-        f"Link: {link}",
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-    await message.reply(
-        "✅ Submitted! Waiting for a moderator to approve your request."
-    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -229,17 +259,16 @@ async def index_callback(bot: Client, query: CallbackQuery):
         state.CANCEL = True
         return await query.answer("⛔ Cancelling…", show_alert=True)
 
-    _, action, chat, last_msg_id, from_user = query.data.split("#")
+    parts = query.data.split("#")
+    # format: index#accept#chat#first_id#last_id#from_user
+    _, action, chat, first_id, last_id, from_user = parts
     from_user_id = int(from_user)
+    first_msg_id = int(first_id)
+    last_msg_id  = int(last_id)
 
-    # Reject
+    # Reject (unused in new flow but kept for safety)
     if action == "reject":
         await query.message.delete()
-        await bot.send_message(
-            from_user_id,
-            f"❌ Your index request for <code>{chat}</code> was declined by a moderator.",
-            reply_to_message_id=int(last_msg_id),
-        )
         return
 
     # Already running?
@@ -248,19 +277,10 @@ async def index_callback(bot: Client, query: CallbackQuery):
 
     await query.answer("⏳ Starting…", show_alert=True)
 
-    # Notify non-admin submitter
-    if from_user_id not in ADMINS:
-        try:
-            await bot.send_message(
-                from_user_id,
-                f"✅ Your index request for <code>{chat}</code> was accepted and indexing has started!",
-                reply_to_message_id=int(last_msg_id),
-            )
-        except Exception:
-            pass
-
     await query.message.edit(
-        "⏳ <b>Indexing started…</b>",
+        f"⏳ <b>Indexing started…</b>\n\n"
+        f"📡 Channel: <code>{chat}</code>\n"
+        f"📌 From: <code>{first_msg_id}</code> → To: <code>{last_msg_id}</code>",
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton("⛔ Cancel", callback_data="index_cancel")]]
         ),
@@ -271,7 +291,7 @@ async def index_callback(bot: Client, query: CallbackQuery):
     except ValueError:
         pass
 
-    await _index_to_db(int(last_msg_id), chat, query.message, bot)
+    await _index_to_db(first_msg_id, last_msg_id, chat, query.message, bot)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -287,19 +307,17 @@ async def close_cb(bot: Client, query: CallbackQuery):
 #  Core indexing loop  (bot.iter_messages – no userbot needed)
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def _index_to_db(last_msg_id: int, chat, msg, bot: Client):
+async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Client):
     total_files = 0
     duplicate   = 0
     errors      = 0
     deleted     = 0
     no_media    = 0
     unsupported = 0
-    current     = state.CURRENT   # messages processed counter
+    current     = 0
 
-    # Pyrogram v2 has no iter_messages – fetch in batches of 200 by ID.
-    # We iterate from last_msg_id down to state.CURRENT (skip offset).
+    # Fetch in batches of 200 IDs from last_msg_id down to first_msg_id (inclusive)
     BATCH = 200
-    # Track last edit time to avoid editing too frequently (min 5s between edits)
     import time
     last_edit_ts = 0.0
 
@@ -307,9 +325,8 @@ async def _index_to_db(last_msg_id: int, chat, msg, bot: Client):
         try:
             state.CANCEL = False
 
-            # Build ID ranges: last_msg_id → state.CURRENT+1 (inclusive)
             start = last_msg_id
-            stop  = max(0, state.CURRENT)
+            stop  = first_msg_id - 1   # inclusive: we want first_msg_id included
 
             while start > stop:
                 if state.CANCEL:
