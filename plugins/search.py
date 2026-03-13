@@ -104,14 +104,14 @@ def _build_keyboard(
     nav = []
     if offset > 0:
         nav.append(InlineKeyboardButton(
-            "◀", callback_data=f"page#{query}#{offset - page_size}"
+            "◀ PREV", callback_data=f"page#{query}#{offset - page_size}"
         ))
     nav.append(InlineKeyboardButton(
         f"🗂 {current_page}/{total_pages}", callback_data="noop"
     ))
     if total > offset + page_size:
         nav.append(InlineKeyboardButton(
-            "▶", callback_data=f"page#{query}#{offset + page_size}"
+            "NEXT ▶", callback_data=f"page#{query}#{offset + page_size}"
         ))
     rows.append(nav)
 
@@ -238,8 +238,7 @@ _IGNORE_CMDS = ["start", "help", "index", "total", "delete",
 @Client.on_message(
     filters.text
     & (filters.private | filters.group)
-    & ~filters.command(_IGNORE_CMDS),
-    group=1   # group=1 so /start and other commands in group=0 always fire first
+    & ~filters.command(_IGNORE_CMDS)
 )
 async def search_handler(bot: Client, message: Message):
     text = message.text.strip()
