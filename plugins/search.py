@@ -104,19 +104,19 @@ def _build_keyboard(
     nav = []
     if offset > 0:
         nav.append(InlineKeyboardButton(
-            "◀ ", callback_data=f"page#{query}#{offset - page_size}"
+            "◀", callback_data=f"page#{query}#{offset - page_size}"
         ))
     nav.append(InlineKeyboardButton(
         f"🗂 {current_page}/{total_pages}", callback_data="noop"
     ))
     if total > offset + page_size:
         nav.append(InlineKeyboardButton(
-            " ▶", callback_data=f"page#{query}#{offset + page_size}"
+            "▶", callback_data=f"page#{query}#{offset + page_size}"
         ))
     rows.append(nav)
 
     #rows.append([InlineKeyboardButton(
-      #  "🔎 New Search", switch_inline_query_current_chat=query
+        #"🔎 New Search", switch_inline_query_current_chat=query
     #)])
     return InlineKeyboardMarkup(rows)
 
@@ -267,26 +267,35 @@ async def search_handler(bot: Client, message: Message):
     files, _ = await get_search_results(query, file_type=file_type,
                                         max_results=MAX_RESULTS, offset=0)
     if not files:
-        no_res = await processing.edit(
-            f"❌ <b>No results for</b> <code>{query}</code>\n\n"
-            "Try different keywords or check spelling."
-        )
-        if not in_pm:
-            asyncio.create_task(_schedule_delete(message, no_res, delay=30))
+        try:
+            no_res = await processing.edit(
+                f"❌ <b>No results for</b> <code>{query}</code>\n\n"
+                "Try different keywords or check spelling."
+            )
+            if not in_pm:
+                asyncio.create_task(_schedule_delete(message, no_res, delay=30))
+        except FloodWait:
+            pass   # silently drop — do NOT send another message
+        except Exception:
+            pass
         return
 
     total    = await _count(query, file_type)
     username = bot.username.lstrip("@") if not in_pm else None
     keyboard = _build_keyboard(files, query, 0, total, bot_username=username)
 
-    await processing.edit(
-        _search_text(query, total, in_group=not in_pm),
-        reply_markup=keyboard,
-    )
+    try:
+        await processing.edit(
+            _search_text(query, total, in_group=not in_pm),
+            reply_markup=keyboard,
+        )
+    except FloodWait:
+        pass   # silently drop
+    except Exception:
+        pass
 
-    # Auto-delete group search results after 5 min
-    if not in_pm:
-        asyncio.create_task(_schedule_delete(message, processing, delay=AUTO_DELETE_TIME))
+    # Auto-delete search results (both PM and group) after AUTO_DELETE_TIME
+    asyncio.create_task(_schedule_delete(message, processing, delay=AUTO_DELETE_TIME))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
