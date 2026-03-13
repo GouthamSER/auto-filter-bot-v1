@@ -150,22 +150,29 @@ async def cancel_index_wizard(bot: Client, message: Message):
     await safe_reply(message, "❌ Index wizard cancelled.")
 
 
+def _in_wizard(_, __, message) -> bool:
+    """Custom filter — only True when this admin is mid-index-wizard."""
+    uid = getattr(message.from_user, "id", None)
+    return uid in _index_state
+
+
+_wizard_filter = filters.create(_in_wizard)
+
+
 @Client.on_message(
-    filters.text
+    _wizard_filter
+    & filters.text
     & filters.private
     & filters.user(ADMINS)
     & ~filters.command([
         "start","help","index","cancelindex","setskip",
         "total","users","delete","channel","logs","logger",
         "broadcast","cancelbroadcast",
-    ]),
-    group=1   # run AFTER all group-0 handlers — never blocks /start or search
+    ])
 )
 async def index_wizard_handler(bot: Client, message: Message):
     """Handle the two-step link collection for /index."""
     uid = message.from_user.id
-    if uid not in _index_state:
-        return   # not in wizard, ignore completely
 
     step = _index_state[uid].get("step")
     text = message.text.strip()
