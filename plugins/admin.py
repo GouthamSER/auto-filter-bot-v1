@@ -325,10 +325,10 @@ async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Clie
         try:
             state.CANCEL = False
 
-            start = last_msg_id
-            stop  = first_msg_id - 1   # inclusive: we want first_msg_id included
+            start = first_msg_id   # begin from first (lowest ID)
+            stop  = last_msg_id    # end at last (highest ID)
 
-            while start > stop:
+            while start <= stop:
                 if state.CANCEL:
                     await safe_edit(
                         msg,
@@ -337,10 +337,10 @@ async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Clie
                     )
                     return
 
-                # Build a batch of IDs (high → low)
-                batch_end = max(stop, start - BATCH)
-                ids       = list(range(start, batch_end, -1))
-                start     = batch_end
+                # Build a batch of IDs (low → high)
+                batch_end = min(stop, start + BATCH - 1)
+                ids       = list(range(start, batch_end + 1))   # [start, start+1, …, batch_end]
+                start     = batch_end + 1                        # advance pointer forward
 
                 # Fetch batch
                 try:
