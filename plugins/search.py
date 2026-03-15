@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", 300))
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,10 +113,6 @@ def _build_keyboard(
             "NEXT ▶", callback_data=f"page#{query}#{offset + page_size}"
         ))
     rows.append(nav)
-
-    #rows.append([InlineKeyboardButton(
-        #"🔎 New Search", switch_inline_query_current_chat=query
-    #)])
     return InlineKeyboardMarkup(rows)
 
 
@@ -126,11 +121,8 @@ def _search_text(query: str, total: int, in_group: bool = False) -> str:
              if in_group else \
              "\n👇 <i>Tap a file name to receive it here:</i>"
     return (
-        f"🔎 <b>Results for:</b> <code>{query}</code>\n"
-        f"📁 <b>Found:</b> <code>{total}</code> file(s)"
-        f"{suffix}"
+        f"<blockquote>🔎 <b>Results for:</b> <code>{query}</code>\n📁 <b>Found:</b> <code>{total}</code> file(s){suffix}</blockquote>"
     )
-
 
 async def _count(query: str, file_type: str = None) -> int:
     query = query.strip()
