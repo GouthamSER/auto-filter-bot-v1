@@ -172,16 +172,16 @@ async def send_file_to_user(bot: Client, user_id: int, file_id: str):
     emoji = _file_emoji(ftype)
 
     caption = (
-        f"{emoji} <b>{fname}</b>\n"
+        f"<blockquote>{emoji} <b>{fname}</b>\n"
         f"📦 <b>Size:</b> <code>{fsize}</code>\n"
-        f"🗂 <b>Type:</b> {ftype.capitalize()}\n\n"
+        f"🗂 <b>Type:</b> {ftype.capitalize()}</blockquote>\n\n"
         f"⚠️ <i>This file will be <b>auto-deleted in "
         f"{AUTO_DELETE_TIME // 60} minute(s)</b> to avoid copyright issues.</i>\n"
         f"📌 <b>Forward it to your Saved Messages to keep it forever!</b>"
     )
 
     markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton("💾 Save to Saved Messages", url="https://t.me/me")
+        InlineKeyboardButton("💾 Save to Saved Messages", callback_data=f"save#{file_id}")
     ]])
 
     try:
@@ -197,8 +197,8 @@ async def send_file_to_user(bot: Client, user_id: int, file_id: str):
 
         timer = await bot.send_message(
             user_id,
-            f"⏳ <b>Auto-deletes in {AUTO_DELETE_TIME // 60} min(s).</b>\n"
-            f"📌 Forward to <a href='https://t.me/me'>Saved Messages</a> to keep it!"
+            f"<blockquote>⏳ <b>Auto-deletes in {AUTO_DELETE_TIME // 60} min(s).</b>\n"
+            f"📌 Forward to <a href='https://t.me/me'>Saved Messages</a> to keep it!</blockquote>"
         )
         asyncio.create_task(_schedule_delete(sent, timer, delay=AUTO_DELETE_TIME))
 
@@ -325,6 +325,31 @@ async def send_file_cb(bot: Client, query: CallbackQuery):
     _, file_id = query.data.split("#", 1)
     await query.answer("📤 Sending…")
     await send_file_to_user(bot, query.from_user.id, file_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Callback – save to saved messages (detects when user taps save button)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@Client.on_callback_query(filters.regex(r"^save#"))
+async def save_message_cb(bot: Client, query: CallbackQuery):
+    """Handle save to saved messages button tap - provides instructions to user."""
+    _, file_id = query.data.split("#", 1)
+    
+    user_id = query.from_user.id
+    username = query.from_user.username or query.from_user.first_name
+    
+    # Log the save action (you can track this in your database if needed)
+    logger.info(f"User {user_id} ({username}) tapped save button for file {file_id}")
+    
+    # Provide instructions in the callback answer popup
+    await query.answer(
+        "💾 To save: Long press the message above → Forward → Saved Messages",
+        show_alert=True
+    )
+    
+    # Optional: You can also update the database to track save attempts
+    # await track_save_attempt(user_id, file_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
