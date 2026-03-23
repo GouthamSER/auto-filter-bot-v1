@@ -67,6 +67,29 @@ def build_web_app() -> web.Application:
     app.router.add_get("/health", health)
     return app
 
+async def keep_alive():
+    """
+    Pings the bot's own  URL every 10 minutes to prevent it from sleeping.
+    Set the URL environment variable to your Render app URL.
+    e.g. https://your-app-name.onrender.com
+    """
+    if not URL:
+        logging.info("URL not set — keep-alive ping disabled.")
+        return
+
+    url = URL.rstrip("/")
+    timeout = ClientTimeout(total=30)
+    logging.info(f"Keep-alive started → pinging {url} every 10 minutes.")
+
+    while True:
+        await asyncio.sleep(3 * 60)  # wait 3 minutes between pings
+        try:
+            async with ClientSession(timeout=timeout) as session:
+                async with session.get(url) as resp:
+                    logging.info(f"Keep-alive ping → {resp.status}")
+        except Exception as e:
+            logging.warning(f"Keep-alive ping failed: {e}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Pyrogram Bot
@@ -143,6 +166,9 @@ async def main():
 
     # Keep running forever – no sleep(x) that would pause the event loop
     await asyncio.Event().wait()
+
+# Keep Render awake with a self-ping every 10 minutes
+    asyncio.create_task(keep_alive())
 
 
 if __name__ == "__main__":
