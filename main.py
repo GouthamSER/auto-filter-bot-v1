@@ -1,12 +1,12 @@
 import logging
 import asyncio
 import os
-from aiohttp import ClientSession, ClientTimeout
-# Ensure URL is imported from config or os.environ
-from aiohttp import web
+
+from aiohttp import web, ClientSession, ClientTimeout
 from pyrogram import Client
 from pyrogram.enums import ParseMode
 
+# Assuming these are in your config.py
 from config import (
     API_ID, API_HASH, BOT_TOKEN, SESSION, LOG_CHANNEL,
     AUTH_CHANNEL, CHANNELS, URL
@@ -20,17 +20,17 @@ logging.basicConfig(
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# ── Web server port (Render/Koyeb inject PORT env var) ────────────────────────
+# ── Environment Variables ────────────────────────────────────────────────────
 PORT = int(os.environ.get("PORT", 8080))
-
+# If URL is not in config, it will try to get it from Environment Variables
+APP_URL = URL or os.environ.get("URL")
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Tiny aiohttp app – keeps the dyno/container alive
+#  Web server app
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok", "bot": "running"})
-
 
 async def home(request: web.Request) -> web.Response:
     html = """<!DOCTYPE html>
@@ -61,7 +61,6 @@ async def home(request: web.Request) -> web.Response:
 </html>"""
     return web.Response(text=html, content_type="text/html")
 
-
 def build_web_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/", home)
@@ -70,27 +69,26 @@ def build_web_app() -> web.Application:
 
 async def keep_alive():
     """
-    Pings the bot's own  URL every 10 minutes to prevent it from sleeping.
-    Set the URL environment variable to your Render app URL.
-    e.g. https://your-app-name.onrender.com
+    Pings the bot's own URL every 3-5 minutes to prevent sleep.
     """
-    if not URL:
-        logging.info("URL not set — keep-alive ping disabled.")
+    if not APP_URL:
+        logger.info("URL not set — keep-alive ping disabled.")
         return
 
-    url = URL.rstrip("/")
-    timeout = ClientTimeout(total=30)
-    logging.info(f"Keep-alive started → pinging {url} every 10 minutes.")
+    url = APP_URL.rstrip("/")
+    timeout = ClientTimeout(total=20)
+    logger.info(f"Keep-alive started → pinging {url} every 3 minutes.")
 
     while True:
-        await asyncio.sleep(3 * 60)  # wait 3 minutes between pings
         try:
             async with ClientSession(timeout=timeout) as session:
                 async with session.get(url) as resp:
-                    logging.info(f"Keep-alive ping → {resp.status}")
+                    logger.info(f"Keep-alive ping → Status: {resp.status}")
         except Exception as e:
-            logging.warning(f"Keep-alive ping failed: {e}")
-
+            logger.warning(f"Keep-alive ping failed: {e}")
+        
+        # Wait 3 minutes between pings
+        await asyncio.sleep(180)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Pyrogram Bot
@@ -105,7 +103,7 @@ class Bot(Client):
             bot_token=BOT_TOKEN,
             workers=50,
             plugins={"root": "plugins"},
-            sleep_threshold=60,  # auto-sleep FloodWaits up to 60s
+            sleep_threshold=60,
             parse_mode=ParseMode.HTML,
         )
 
@@ -117,14 +115,10 @@ class Bot(Client):
         self.mention  = me.mention
         logger.info("✅ %s started as %s", me.first_name, self.username)
 
-        # ── Pre-resolve all peers so Pyrogram caches them ────────────────────
-        # Without this, bot.get_chat_member(numeric_id, ...) raises
-        # "Peer id invalid" because the peer was never "seen" before.
+        # Pre-resolve peers
         peers_to_resolve = list(CHANNELS)
-        if AUTH_CHANNEL:
-            peers_to_resolve.append(AUTH_CHANNEL)
-        if LOG_CHANNEL:
-            peers_to_resolve.append(LOG_CHANNEL)
+        if AUTH_CHANNEL: peers_to_resolve.append(AUTH_CHANNEL)
+        if LOG_CHANNEL: peers_to_resolve.append(LOG_CHANNEL)
 
         for peer in peers_to_resolve:
             try:
@@ -132,7 +126,6 @@ class Bot(Client):
                 logger.info("✅ Resolved peer: %s", peer)
             except Exception as e:
                 logger.warning("⚠️ Could not resolve peer %s: %s", peer, e)
-        # ─────────────────────────────────────────────────────────────────────
 
         if LOG_CHANNEL:
             try:
@@ -148,9 +141,8 @@ class Bot(Client):
         await super().stop()
         logger.info("Bot stopped.")
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-#  Run both concurrently
+#  Main Execution
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -158,19 +150,24 @@ async def main():
     webapp = build_web_app()
     runner = web.AppRunner(webapp)
 
+    # 1. Setup Web Server
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
-
-    await bot.start()
     await site.start()
     logger.info("🌐 Web server listening on port %d", PORT)
 
-    # Keep running forever – no sleep(x) that would pause the event loop
-    await asyncio.Event().wait()
+    # 2. Start Pyrogram Bot
+    await bot.start()
 
-# Keep Render awake with a self-ping every 10 minutes
+    # 3. Start Keep-Alive Background Task
+    # (Must be done BEFORE the blocking Event().wait())
     asyncio.create_task(keep_alive())
 
+    # 4. Keep the loop running forever
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Process interrupted by user.")
