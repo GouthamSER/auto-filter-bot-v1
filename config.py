@@ -26,6 +26,8 @@ CHANNELS     = parse_ids("CHANNELS")
 ADMINS       = parse_ids("ADMINS")
 AUTH_USERS   = parse_ids("AUTH_USERS") + ADMINS
 
+URL = environ.get("URL", "") #keepalive url 
+
 # Optional: channel users must join before using bot
 AUTH_CHANNEL = environ.get("AUTH_CHANNEL")
 AUTH_CHANNEL = int(AUTH_CHANNEL) if AUTH_CHANNEL and id_pattern.match(AUTH_CHANNEL) else AUTH_CHANNEL
