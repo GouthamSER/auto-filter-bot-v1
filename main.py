@@ -1,14 +1,15 @@
 import logging
 import asyncio
 import os
-
+from aiohttp import ClientSession, ClientTimeout
+# Ensure URL is imported from config or os.environ
 from aiohttp import web
 from pyrogram import Client
 from pyrogram.enums import ParseMode
 
 from config import (
     API_ID, API_HASH, BOT_TOKEN, SESSION, LOG_CHANNEL,
-    AUTH_CHANNEL, CHANNELS,
+    AUTH_CHANNEL, CHANNELS, URL
 )
 from database.db import Media
 
