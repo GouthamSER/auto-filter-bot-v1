@@ -17,8 +17,8 @@ BOT_TOKEN     = environ["BOT_TOKEN"]
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASE_URI     = environ["DATABASE_URI"]
-DATABASE_NAME    = environ.get("DATABASE_NAME", "MediaSearchDB")
-COLLECTION_NAME  = environ.get("COLLECTION_NAME", "tgfls")
+DATABASE_NAME    = environ.get("DATABASE_NAME", "")
+COLLECTION_NAME  = environ.get("COLLECTION_NAME", "v1files")
 
 # ── Channels / Admins ────────────────────────────────────────────────────────
 # Space-separated list of channel IDs/usernames to auto-index
