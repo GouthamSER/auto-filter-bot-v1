@@ -23,9 +23,29 @@ cache_time = 0 if (AUTH_USERS or AUTH_CHANNEL) else CACHE_TIME
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# FIX: filters.user(AUTH_USERS) crashes when AUTH_USERS is an empty list because
+# Pyrogram doesn't accept an empty user filter. Guard it properly.
+# ─────────────────────────────────────────────────────────────────────────────
 
-@Client.on_inline_query(filters.user(AUTH_USERS) if AUTH_USERS else None)
-async def answer_inline(bot: Client, query):
+def _inline_filter():
+    if AUTH_USERS:
+        return filters.user(AUTH_USERS)
+    return None   # no restriction – handled inside the handler
+
+
+_ifilter = _inline_filter()
+
+if _ifilter is not None:
+    @Client.on_inline_query(_ifilter)
+    async def answer_inline(bot: Client, query):
+        await _handle_inline(bot, query)
+else:
+    @Client.on_inline_query()
+    async def answer_inline(bot: Client, query):
+        await _handle_inline(bot, query)
+
+
+async def _handle_inline(bot, query):
     """Return cached file results for inline queries."""
 
     if AUTH_CHANNEL and not await is_subscribed(bot, query.from_user.id):
@@ -39,7 +59,6 @@ async def answer_inline(bot: Client, query):
 
     raw_q = query.query.strip()
 
-    # Support "name | type" filter
     if "|" in raw_q:
         text, file_type = raw_q.split("|", 1)
         text      = text.strip()
@@ -53,7 +72,7 @@ async def answer_inline(bot: Client, query):
         text, file_type=file_type, max_results=MAX_RESULTS, offset=offset
     )
 
-    results  = []
+    results      = []
     share_markup = _share_markup(bot.username, text)
 
     for f in files:
@@ -118,7 +137,6 @@ async def answer_inline(bot: Client, query):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _share_markup(username: str, query: str) -> InlineKeyboardMarkup:
-    share_text = f"Search files on {username}"
     url = "https://t.me/share/url?url=" + quote(f"https://t.me/{username.lstrip('@')}")
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("🔍 Search Again", switch_inline_query_current_chat=query),

@@ -13,6 +13,7 @@ import logging
 import asyncio
 import re
 import os
+import time
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import (
@@ -29,7 +30,9 @@ from config import ADMINS, CHANNELS, LOG_CHANNEL
 from database.db import Media, save_file
 
 logger = logging.getLogger(__name__)
+# FIX: removed duplicate logger + _lock definitions that appeared later in the file
 _lock = asyncio.Lock()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  FloodWait-safe wrappers
@@ -70,9 +73,6 @@ async def safe_reply(message, text: str, reply_markup=None):
         except Exception as e:
             logger.warning("safe_reply error: %s", e)
             break
-
-logger = logging.getLogger(__name__)
-_lock = asyncio.Lock()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -333,17 +333,15 @@ async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Clie
     unsupported = 0
     current     = 0
 
-    # Fetch in batches of 200 IDs from last_msg_id down to first_msg_id (inclusive)
     BATCH = 200
-    import time
     last_edit_ts = 0.0
 
     async with _lock:
         try:
             state.CANCEL = False
 
-            start = first_msg_id   # begin from first (lowest ID)
-            stop  = last_msg_id    # end at last (highest ID)
+            start = first_msg_id
+            stop  = last_msg_id
 
             while start <= stop:
                 if state.CANCEL:
@@ -354,12 +352,10 @@ async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Clie
                     )
                     return
 
-                # Build a batch of IDs (low → high)
                 batch_end = min(stop, start + BATCH - 1)
-                ids       = list(range(start, batch_end + 1))   # [start, start+1, …, batch_end]
-                start     = batch_end + 1                        # advance pointer forward
+                ids       = list(range(start, batch_end + 1))
+                start     = batch_end + 1
 
-                # Fetch batch
                 try:
                     messages = await bot.get_messages(chat, ids)
                 except FloodWait as e:
@@ -416,8 +412,6 @@ async def _index_to_db(first_msg_id: int, last_msg_id: int, chat, msg, bot: Clie
                     else:
                         duplicate += 1
 
-                # Update progress once per batch (≤1 edit per ~200 messages)
-                # and only if at least 5 seconds have passed since last edit
                 now = time.time()
                 if now - last_edit_ts >= 5:
                     await safe_edit(

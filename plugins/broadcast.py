@@ -57,12 +57,10 @@ async def broadcast_cmd(bot: Client, message: Message):
             "Use /cancelbroadcast to stop it first."
         )
 
-    # Determine what to send
-    to_copy   = message.reply_to_message   # forward this message if present
+    to_copy   = message.reply_to_message
     text_only = None
 
     if not to_copy:
-        # Text after command: /broadcast Hello world
         if len(message.command) < 2:
             return await message.reply(
                 "📢 <b>How to broadcast:</b>\n\n"
@@ -75,7 +73,6 @@ async def broadcast_cmd(bot: Client, message: Message):
     if total_users == 0:
         return await message.reply("❌ No users in database yet.")
 
-    # Confirm before sending
     preview = (
         f"<b>📢 Broadcast Preview</b>\n\n"
         f"👥 <b>Recipients:</b> <code>{total_users}</code> users\n"
@@ -87,7 +84,6 @@ async def broadcast_cmd(bot: Client, message: Message):
         InlineKeyboardButton("❌ Cancel", callback_data="bc_abort"),
     ]]
 
-    # Stash the source for the callback to use
     bot._bc_source_chat    = message.chat.id
     bot._bc_source_msg_id  = to_copy.id if to_copy else None
     bot._bc_text_only      = text_only
@@ -129,7 +125,6 @@ async def bc_confirm_cb(bot: Client, query: CallbackQuery):
         )
     )
 
-    # Run broadcast in background so callback returns immediately
     asyncio.create_task(
         _do_broadcast(
             bot,
@@ -153,28 +148,31 @@ async def bc_cancel_btn_cb(bot: Client, query: CallbackQuery):
 
 async def _do_broadcast(
     bot: Client,
-    status_msg,            # message to edit with live progress
+    status_msg,
     source_chat: int,
-    source_msg_id: int,    # None if text_only
-    text_only: str,        # None if copying a message
+    source_msg_id: int,
+    text_only: str,
 ):
     bc.running = True
     bc.cancel  = False
 
-    sent     = 0
-    failed   = 0
-    blocked  = 0
+    sent      = 0
+    failed    = 0
+    blocked   = 0
     last_edit = 0.0
 
     user_ids = await Users.get_all_ids()
     total    = len(user_ids)
 
+    # FIX: capture cancelled state BEFORE resetting bc.cancel in finally
+    was_cancelled = False
+
     try:
         for i, uid in enumerate(user_ids, 1):
             if bc.cancel:
+                was_cancelled = True
                 break
 
-            # ── Send ──────────────────────────────────────────────────────────
             for attempt in range(3):
                 try:
                     if text_only:
@@ -186,17 +184,16 @@ async def _do_broadcast(
                             message_id   = source_msg_id,
                         )
                     sent += 1
-                    break   # success
+                    break
 
                 except FloodWait as e:
                     wait = e.value + 2
                     logger.warning("FloodWait %ds during broadcast (user %s)", wait, uid)
                     await asyncio.sleep(wait)
-                    # retry loop continues
 
                 except (UserIsBlocked, InputUserDeactivated):
                     blocked += 1
-                    await Users.remove(uid)   # clean up DB
+                    await Users.remove(uid)
                     break
 
                 except (PeerIdInvalid, UserNotParticipant):
@@ -208,7 +205,6 @@ async def _do_broadcast(
                     failed += 1
                     break
 
-            # ── Progress update every 20 users (max 1 edit per 3s) ────────────
             now = time.time()
             if (i % 20 == 0 or i == total) and now - last_edit >= 3:
                 try:
@@ -220,21 +216,20 @@ async def _do_broadcast(
                     )
                     last_edit = time.time()
                 except FloodWait:
-                    pass   # skip this update, don't cascade
+                    pass
                 except Exception:
                     pass
 
-            # Small delay to avoid hammering Telegram (30 msg/s safe limit)
             await asyncio.sleep(0.05)
 
     finally:
         bc.running = False
         bc.cancel  = False
 
-    # Final report
+    # FIX: use was_cancelled (captured before finally reset bc.cancel)
     try:
         await status_msg.edit_text(
-            f"{'⛔ Broadcast cancelled!' if bc.cancel else '✅ Broadcast complete!'}\n\n"
+            f"{'⛔ Broadcast cancelled!' if was_cancelled else '✅ Broadcast complete!'}\n\n"
             f"👥 Total users: <code>{total}</code>\n"
             f"✅ Sent: <code>{sent}</code>\n"
             f"🚫 Blocked/Deactivated: <code>{blocked}</code> (removed from DB)\n"
@@ -245,7 +240,7 @@ async def _do_broadcast(
 
 
 def _progress_text(done, total, sent, failed, blocked, cancelled) -> str:
-    pct = int(done / total * 100) if total else 0
+    pct     = int(done / total * 100) if total else 0
     bar_len = 10
     filled  = int(bar_len * done / total) if total else 0
     bar     = "█" * filled + "░" * (bar_len - filled)

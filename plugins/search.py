@@ -9,6 +9,11 @@ Group flow:
   User taps file  → redirected to bot PM via  t.me/bot?start=<file_id>
   /start handler  → detects file_id, sends file → auto-delete
   Pagination (◀ PREV / NEXT ▶) still works in group via callbacks
+
+Security:
+  PREV/NEXT callbacks are restricted to the user who triggered the search.
+  send# callbacks are restricted to the user who taps (already safe by design
+  since the file is sent to query.from_user.id, not the message owner).
 """
 
 import asyncio
@@ -71,9 +76,10 @@ def _parse_query(text: str):
 
 def _build_keyboard(
     files: list,
-    query: str,
+    query: str,          # raw query (may include "| filetype")
     offset: int,
     total: int,
+    user_id: int,        # owner of this search – encoded in nav callbacks
     bot_username: str = None,   # if set → group mode: URL deep-link buttons
 ) -> InlineKeyboardMarkup:
     rows = []
@@ -96,6 +102,7 @@ def _build_keyboard(
             rows.append([InlineKeyboardButton(label, callback_data=f"send#{fid}")])
 
     # Pagination row – always callback (works in both PM and group)
+    # FIX: encode user_id in callback so only the search owner can paginate
     page_size    = MAX_RESULTS
     current_page = (offset // page_size) + 1
     total_pages  = max(1, math.ceil(total / page_size))
@@ -103,14 +110,14 @@ def _build_keyboard(
     nav = []
     if offset > 0:
         nav.append(InlineKeyboardButton(
-            "◀ PREV", callback_data=f"page#{query}#{offset - page_size}"
+            "◀ PREV", callback_data=f"page#{user_id}#{query}#{offset - page_size}"
         ))
     nav.append(InlineKeyboardButton(
         f"🗂 {current_page}/{total_pages}", callback_data="noop"
     ))
     if total > offset + page_size:
         nav.append(InlineKeyboardButton(
-            "NEXT ▶", callback_data=f"page#{query}#{offset + page_size}"
+            "NEXT ▶", callback_data=f"page#{user_id}#{query}#{offset + page_size}"
         ))
     rows.append(nav)
     return InlineKeyboardMarkup(rows)
@@ -210,11 +217,10 @@ async def send_file_to_user(bot: Client, user_id: int, file_id: str):
         )
     except Exception as e:
         logger.exception("send_file_to_user error: %s", e)
-        # Only attempt error message if it's NOT a FloodWait-related error
         try:
             await bot.send_message(user_id, f"❌ Failed to send file: <code>{e}</code>")
         except FloodWait:
-            pass  # still rate limited — silently drop
+            pass
         except Exception:
             pass
 
@@ -267,14 +273,16 @@ async def search_handler(bot: Client, message: Message):
             if not in_pm:
                 asyncio.create_task(_schedule_delete(message, no_res, delay=30))
         except FloodWait:
-            pass   # silently drop — do NOT send another message
+            pass
         except Exception:
             pass
         return
 
     total    = await _count(query, file_type)
     username = bot.username.lstrip("@") if not in_pm else None
-    keyboard = _build_keyboard(files, query, 0, total, bot_username=username)
+    # FIX: pass user.id so only the requester can use PREV/NEXT
+    keyboard = _build_keyboard(files, text, 0, total,
+                               user_id=user.id, bot_username=username)
 
     try:
         await processing.edit(
@@ -282,11 +290,10 @@ async def search_handler(bot: Client, message: Message):
             reply_markup=keyboard,
         )
     except FloodWait:
-        pass   # silently drop
+        pass
     except Exception:
         pass
 
-    # Auto-delete search results (both PM and group) after AUTO_DELETE_TIME
     asyncio.create_task(_schedule_delete(message, processing, delay=AUTO_DELETE_TIME))
 
 
@@ -296,7 +303,21 @@ async def search_handler(bot: Client, message: Message):
 
 @Client.on_callback_query(filters.regex(r"^page#"))
 async def page_cb(bot: Client, query: CallbackQuery):
-    _, raw_query, raw_offset = query.data.split("#", 2)
+    # FIX: format is now page#<user_id>#<raw_query>#<offset>
+    # Split into exactly 4 parts (query may contain "#" itself – unlikely but safe)
+    parts = query.data.split("#", 3)
+    if len(parts) != 4:
+        return await query.answer("Invalid pagination data.", show_alert=True)
+
+    _, owner_id, raw_query, raw_offset = parts
+
+    # ── SECURITY: only the user who triggered the search can paginate ──
+    if query.from_user.id != int(owner_id):
+        return await query.answer(
+            "⚠️ Only the person who searched can use these buttons.",
+            show_alert=True
+        )
+
     offset   = int(raw_offset)
     q, ft    = _parse_query(raw_query)
     in_group = query.message.chat.type != ChatType.PRIVATE
@@ -307,7 +328,8 @@ async def page_cb(bot: Client, query: CallbackQuery):
 
     total    = await _count(q, ft)
     username = bot.username.lstrip("@") if in_group else None
-    keyboard = _build_keyboard(files, raw_query, offset, total, bot_username=username)
+    keyboard = _build_keyboard(files, raw_query, offset, total,
+                               user_id=int(owner_id), bot_username=username)
 
     try:
         await query.message.edit_reply_markup(keyboard)
@@ -328,28 +350,23 @@ async def send_file_cb(bot: Client, query: CallbackQuery):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Callback – save to saved messages (detects when user taps save button)
+#  Callback – save to saved messages
 # ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_callback_query(filters.regex(r"^save#"))
 async def save_message_cb(bot: Client, query: CallbackQuery):
     """Handle save to saved messages button tap - provides instructions to user."""
     _, file_id = query.data.split("#", 1)
-    
-    user_id = query.from_user.id
+
+    user_id  = query.from_user.id
     username = query.from_user.username or query.from_user.first_name
-    
-    # Log the save action (you can track this in your database if needed)
-    logger.info(f"User {user_id} ({username}) tapped save button for file {file_id}")
-    
-    # Provide instructions in the callback answer popup
+
+    logger.info("User %s (%s) tapped save button for file %s", user_id, username, file_id)
+
     await query.answer(
         "💾 To save: Long press the message above → Forward → Saved Messages",
         show_alert=True
     )
-    
-    # Optional: You can also update the database to track save attempts
-    # await track_save_attempt(user_id, file_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
