@@ -20,7 +20,7 @@
 | 💬 **PM Search** | Type any name → paginated file buttons → tap to receive instantly |
 | 👥 **Group Search** | Results shown in group → tap → file delivered to your PM via deep-link |
 | 🔗 **Deep-Link Delivery** | Group buttons use `t.me/bot?start=<file_id>` — works even if user never started bot |
-| ◀▶ **Prev / Next Pages** | AutoFilterBot-style pagination with live page counter |
+| ◀▶ **Prev / Next Pages** | Pagination with live page counter — only the searcher can press PREV/NEXT |
 | 🗑 **Auto-Delete** | Files auto-delete after configurable time to avoid copyright issues |
 | 📌 **Save Reminder** | Users instructed to forward to Saved Messages before deletion |
 | 👤 **User Tracking** | Every `/start` user is saved to DB; new users trigger a log channel notification |
@@ -98,7 +98,13 @@ Done: 400/1000
 
 1. Click the button above
 2. Fill in the required environment variables
-3. Deploy — uses `Procfile` → `worker: python main.py`
+3. Deploy — uses `heroku.yml` (container stack) → `web: python main.py`
+
+> **Note:** Switch your Heroku app to the container stack first:
+> ```bash
+> heroku stack:set container -a <your-app>
+> git push heroku main
+> ```
 
 ### Render / Koyeb
 1. Connect your GitHub repo
@@ -140,9 +146,11 @@ python main.py
 | `SESSION` | `MediaSearchBot` | Pyrogram session name |
 | `MAX_RESULTS` | `10` | Files shown per page |
 | `AUTO_DELETE_TIME` | `300` | Seconds before file is deleted (300 = 5 min) |
+| `CACHE_TIME` | `300` | Inline query cache duration in seconds |
 | `USE_CAPTION_FILTER` | `false` | Also search inside file captions |
 | `AUTH_CHANNEL` | — | Force users to join this channel ID before using bot |
-| `PORT` | `8080` | Web server port (auto-set by Render/Koyeb) |
+| `URL` | — | Your app's public URL for keep-alive pings |
+| `PORT` | `8080` | Web server port (auto-set by Render/Koyeb/Heroku) |
 
 ### Custom Messages (Optional)
 | Variable | Description |
@@ -157,20 +165,50 @@ python main.py
 ### Everyone
 | Command | Description |
 |---|---|
-| `/start` | Welcome message + search buttons |
+| `/start` | Welcome message + inline search buttons |
+
+> 💡 `/help` and `/status` are available as **inline buttons** on the start message — not slash commands.
 
 ### Admins Only
 | Command | Description |
 |---|---|
+| `/index` | Bulk-index a channel range (two-step wizard — no userbot needed) |
+| `/cancelindex` | Abort the index wizard mid-setup |
+| `/setskip <N>` | Set message-ID offset before indexing (resume from a specific point) |
 | `/total` | Total files saved in database |
 | `/users` | Total registered users count |
 | `/broadcast` | Send a message to all users (reply to any message, or inline text) |
 | `/cancelbroadcast` | Stop a running broadcast mid-way |
-| `/channel` | List all watched channels |
-| `/index <channel_id>` | Bulk-index a channel (bot-only, no userbot needed) |
-| `/setskip <N>` | Set message skip offset for `/index` (resume indexing) |
-| `/delete` | Reply to any media → removes it from DB |
-| `/logs` | Download the log file |
+| `/channel` | List all watched/indexed channels |
+| `/delete` | Reply to any media message → removes it from DB |
+| `/logs` | Download the bot log file |
+
+### Setting Commands via BotFather
+
+Open [@BotFather](https://t.me/BotFather) → your bot → **Edit Bot** → **Edit Commands** → paste:
+
+```
+start - Start the bot / get welcome message
+index - Index a channel range (wizard)
+cancelindex - Abort a running index wizard
+setskip - Set message-ID offset for indexing
+total - Total files in the database
+users - Total registered users
+broadcast - Broadcast a message to all users
+cancelbroadcast - Stop an in-progress broadcast
+channel - List watched/indexed channels
+delete - Remove a file from the database (reply to it)
+logs - Get the bot log file
+```
+
+Or use the included script to set scoped commands automatically
+(regular users only see `/start`, admins see the full list):
+
+```bash
+export BOT_TOKEN=your_token
+export ADMINS="123456789 987654321"
+python set_commands.py
+```
 
 ---
 
@@ -193,9 +231,9 @@ Bot shows a **preview with recipient count** and **Confirm / Cancel** buttons be
 ## 🔍 Search Tips
 
 - **Basic:** type any movie or file name in PM or any group
-- **Filter by type:** `movie name | video` or `song name | audio`
+- **Filter by type:** `movie name | video` or `song name | audio` or `doc name | document`
 - **Inline anywhere:** `@YourBot movie name` in any chat
-- **Pagination:** tap **◀ PREV** / **NEXT ▶** to browse all results
+- **Pagination:** tap **◀ PREV** / **NEXT ▶** to browse all results — only the user who searched can press these
 - **Group:** results appear in the group; tapping a file delivers it to your PM
 
 ---
@@ -204,11 +242,12 @@ Bot shows a **preview with recipient count** and **Confirm / Cancel** buttons be
 
 ```
 auto-filter-bot-v1/
-├── main.py                 ← Bot entry point + aiohttp web server
+├── main.py                 ← Bot entry point + aiohttp web server + keep-alive
 ├── config.py               ← All configuration via environment variables
-├── index.py                ← Standalone channel bulk-indexer (CLI)
+├── set_commands.py         ← One-shot script to set BotFather command scopes
 ├── requirements.txt
-├── Procfile                ← Heroku: worker: python main.py
+├── Dockerfile              ← Docker image (used by Heroku container stack)
+├── heroku.yml              ← Heroku container stack config
 ├── sample.env              ← Example environment variables
 │
 ├── database/
@@ -217,13 +256,13 @@ auto-filter-bot-v1/
 │
 └── plugins/
     ├── __init__.py
-    ├── start.py            ← /start + deep-link file delivery + force-subscribe
-    ├── search.py           ← PM & group search, pagination, auto-delete
+    ├── start.py            ← /start + deep-link file delivery + force-subscribe + help/status buttons
+    ├── search.py           ← PM & group search, pagination (owner-only), auto-delete
     ├── inline.py           ← Inline mode search
     ├── channel.py          ← Auto-index new files from watched channels
     ├── users.py            ← User tracking + new user log channel notification
     ├── broadcast.py        ← /broadcast with live progress + cancel + auto-cleanup
-    └── admin.py            ← Admin commands + bot-only channel indexer
+    └── admin.py            ← /index wizard + all other admin commands
 ```
 
 ---
