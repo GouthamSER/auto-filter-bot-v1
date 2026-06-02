@@ -9,24 +9,30 @@ def parse_ids(env_key, default=""):
     return [int(x) if id_pattern.match(x) else x for x in raw if x]
 
 
-# ── Bot Credentials ─────────────────────────────────────────────────────────
+# ── Bot Credentials ──────────────────────────────────────────────────────────
 SESSION       = environ.get("SESSION", "MediaSearchBot")
 API_ID        = int(environ["API_ID"])
 API_HASH      = environ["API_HASH"]
 BOT_TOKEN     = environ["BOT_TOKEN"]
 
-# ── Database ─────────────────────────────────────────────────────────────────
+# ── Primary Database (required) ───────────────────────────────────────────────
 DATABASE_URI     = environ["DATABASE_URI"]
-DATABASE_NAME    = environ.get("DATABASE_NAME", "")
-COLLECTION_NAME  = environ.get("COLLECTION_NAME", "v1files")
+DATABASE_NAME    = environ.get("DATABASE_NAME", "MediaSearchDB")
+COLLECTION_NAME  = environ.get("COLLECTION_NAME", "tgfls")
+
+# ── Secondary Database (optional) ─────────────────────────────────────────────
+# If set: new files & users are saved here; search falls back to DB1 if DB2
+# has no results. If not set: only DB1 is used.
+DATABASE_URI_2    = environ.get("DATABASE_URI_2", "")
+DATABASE_NAME_2   = environ.get("DATABASE_NAME_2", DATABASE_NAME)
+COLLECTION_NAME_2 = environ.get("COLLECTION_NAME_2", COLLECTION_NAME)
 
 # ── Channels / Admins ────────────────────────────────────────────────────────
-# Space-separated list of channel IDs/usernames to auto-index
-CHANNELS     = parse_ids("CHANNELS")
-ADMINS       = parse_ids("ADMINS")
-AUTH_USERS   = parse_ids("AUTH_USERS") + ADMINS
+CHANNELS   = parse_ids("CHANNELS")
+ADMINS     = parse_ids("ADMINS")
+AUTH_USERS = parse_ids("AUTH_USERS") + ADMINS
 
-URL = environ.get("URL", "") #keepalive url 
+URL = environ.get("URL", "")  # keep-alive url
 
 # Optional: channel users must join before using bot
 AUTH_CHANNEL = environ.get("AUTH_CHANNEL")
@@ -37,9 +43,9 @@ LOG_CHANNEL_RAW = environ.get("LOG_CHANNEL", "")
 LOG_CHANNEL = int(LOG_CHANNEL_RAW) if LOG_CHANNEL_RAW and id_pattern.match(LOG_CHANNEL_RAW) else None
 
 # ── Search Settings ───────────────────────────────────────────────────────────
-MAX_RESULTS         = int(environ.get("MAX_RESULTS", 10))   # results per page
-CACHE_TIME          = int(environ.get("CACHE_TIME", 300))   # inline cache (seconds)
-USE_CAPTION_FILTER  = environ.get("USE_CAPTION_FILTER", "false").lower() == "true"
+MAX_RESULTS        = int(environ.get("MAX_RESULTS", 10))
+CACHE_TIME         = int(environ.get("CACHE_TIME", 300))
+USE_CAPTION_FILTER = environ.get("USE_CAPTION_FILTER", "false").lower() == "true"
 
 # ── Messages ──────────────────────────────────────────────────────────────────
 START_MSG = environ.get(
