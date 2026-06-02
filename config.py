@@ -42,17 +42,25 @@ CACHE_TIME          = int(environ.get("CACHE_TIME", 300))   # inline cache (seco
 USE_CAPTION_FILTER  = environ.get("USE_CAPTION_FILTER", "false").lower() == "true"
 
 # ── Messages ──────────────────────────────────────────────────────────────────
-START_MSG = environ.get(
-    "START_MSG",
-    "👋 <b>Hi {mention}!</b>\n\n"
-    "🔍 <b>Send me any movie or file name</b> and I'll search the database for you!\n\n"
-    "📌 <b>Tips:</b>\n"
-    "• Use <code>name | video</code> to filter by type\n"
-    "• Use inline: <code>@{username} movie name</code>"
-)
+START_MSG = """
+<b>Welcome {mention}</b>
+
+This bot helps you search and receive files instantly.
+
+• Search directly in private chat
+• Use inline mode in groups
+• Fast file delivery
+• Smart filtering system
+
+Choose an option below to continue.
+"""
 
 FORCE_SUB_MSG = environ.get(
-    "FORCE_SUB_MSG",
-    "⚠️ <b>You must join our channel first!</b>\n\n"
-    "👉 Join and then try again."
+"FORCE_SUB_MSG",
+"⚠️ <b>Channel Membership Required</b>\n\n"
+"📢 Join our official channel to unlock all bot features.\n\n"
+"✨ Instant file delivery\n"
+"✨ Latest updates\n"
+"✨ Better user experience\n\n"
+"👇 Tap the button below to join and continue."
 )
