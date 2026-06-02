@@ -76,15 +76,16 @@ async def _get_invite(bot: Client) -> str:
 def _start_buttons() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔍 Search Here", switch_inline_query_current_chat=""),
-            InlineKeyboardButton("🌐 Go Inline",   switch_inline_query=""),
+            InlineKeyboardButton("Search Files", switch_inline_query_current_chat="")
         ],
         [
-            InlineKeyboardButton("❓ Help",   callback_data="help"),
-            InlineKeyboardButton("📊 Status", callback_data="status"),
+            InlineKeyboardButton("Inline Search", switch_inline_query="")
         ],
+        [
+            InlineKeyboardButton("Help", callback_data="help"),
+            InlineKeyboardButton("Stats", callback_data="status")
+        ]
     ])
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  /start
@@ -155,33 +156,35 @@ async def back_start_cb(bot: Client, query: CallbackQuery):
 async def help_cb(bot: Client, query: CallbackQuery):
     uname = bot.username.lstrip("@")
     text = (
-        "❓ <b>How to Use</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Help Center</b>\n"
+        "━━━━━━━━━━━━━━━\n\n"
 
-        "💬 <b>Search in PM (this chat)</b>\n"
-        "Just type any <b>movie or file name</b> and I'll show results with buttons.\n\n"
+        "<b>Private Search</b>\n"
+        "Send any movie, series, audio, document or file name directly in this chat.\n\n"
 
-        "👥 <b>Search in a Group</b>\n"
-        "Type the name in your group → tap a result button → "
-        "I'll send the file directly to your PM.\n\n"
+        "<b>Group Search</b>\n"
+        "Use inline mode from any group and receive files privately.\n\n"
 
-        "◀▶ <b>Pagination</b>\n"
-        "Use <b>◀ PREV</b> and <b>NEXT ▶</b> to browse pages of results.\n\n"
+        "<b>Inline Mode</b>\n"
+        f"<code>@{uname} query</code>\n\n"
 
-        "🔎 <b>Filter by file type</b>\n"
+        "<b>Available Filters</b>\n"
         "<code>movie name | video</code>\n"
         "<code>song name | audio</code>\n"
-        "<code>doc name | document</code>\n\n"
+        "<code>file name | document</code>\n\n"
 
-        "🌐 <b>Inline Mode</b>\n"
-        f"Type <code>@{uname} name</code> in <b>any chat</b> to search inline.\n\n"
+        "<b>Navigation</b>\n"
+        "Browse large result lists using Previous and Next buttons.\n\n"
 
-        "⏳ <b>Auto-Delete</b>\n"
-        "Files and results are auto-deleted after a few minutes.\n"
-        "📌 <b>Forward to <a href='https://t.me/me'>Saved Messages</a> to keep them!</b>"
+        "<b>Important</b>\n"
+        "Some files may be removed automatically after delivery.\n"
+        "Forward important files to Saved Messages for permanent access."
     )
-    await query.message.edit(text, reply_markup=_BACK, disable_web_page_preview=True)
-
+    await query.message.edit(
+        text,
+        reply_markup=_BACK,
+        disable_web_page_preview=True
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  📊 Status
@@ -189,23 +192,24 @@ async def help_cb(bot: Client, query: CallbackQuery):
 
 @Client.on_callback_query(filters.regex(r"^status$"))
 async def status_cb(bot: Client, query: CallbackQuery):
-    await query.answer("⏳ Fetching stats…")
+    await query.answer()
     try:
         from database.db import Media, Users
         total_files = await Media.count_documents()
         total_users = await Users.count()
-    except Exception as e:
-        logger.exception("Status fetch error: %s", e)
-        return await query.message.edit("❌ Could not fetch stats. Try again later.", reply_markup=_BACK)
-
+    except Exception:
+        return await query.message.edit(
+            "<b>Unable to fetch statistics.</b>",
+            reply_markup=_BACK
+        )
     me = await bot.get_me()
     text = (
-        "📊 <b>Bot Status</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🤖 <b>Bot:</b> {me.mention}\n"
-        f"🔗 <b>Username:</b> @{me.username}\n\n"
-        f"📁 <b>Total Files:</b> <code>{total_files:,}</code>\n"
-        f"👥 <b>Total Users:</b> <code>{total_users:,}</code>\n\n"
-        "🟢 <b>Status:</b> Online & Running"
+        "<b>Bot Statistics</b>\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        f"<b>Bot:</b> {me.mention}\n"
+        f"<b>Username:</b> @{me.username}\n\n"
+        f"<b>Files Indexed:</b> <code>{total_files:,}</code>\n"
+        f"<b>Users:</b> <code>{total_users:,}</code>\n\n"
+        "<b>System Status:</b> Online"
     )
     await query.message.edit(text, reply_markup=_BACK)
