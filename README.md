@@ -1,95 +1,57 @@
+# 🎬 auto-filter-bot-v1
+
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=6C63FF&height=200&section=header&text=Auto%20Filter%20Bot&fontSize=50&fontColor=ffffff&fontAlignY=38&desc=Telegram%20Media%20Search%20Bot&descAlignY=58&descAlign=50" width="100%"/>
+  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Pyrogram-v2-green?style=for-the-badge&logo=telegram&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MongoDB-Motor-brightgreen?style=for-the-badge&logo=mongodb&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Deploy-Heroku%20%7C%20Render%20%7C%20Koyeb-purple?style=for-the-badge"/>
 </p>
 
 <p align="center">
-  <a href="https://github.com/GouthamSER/auto-filter-bot-v1/stargazers"><img src="https://img.shields.io/github/stars/GouthamSER/auto-filter-bot-v1?color=6C63FF&style=for-the-badge&logo=github"/></a>
-  <a href="https://github.com/GouthamSER/auto-filter-bot-v1/fork"><img src="https://img.shields.io/github/forks/GouthamSER/auto-filter-bot-v1?color=FF6584&style=for-the-badge&logo=github"/></a>
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Pyrogram-v2-29ABE2?style=for-the-badge&logo=telegram&logoColor=white"/>
-  <img src="https://img.shields.io/badge/MongoDB-Motor-47A248?style=for-the-badge&logo=mongodb&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Deploy-Heroku%20%7C%20Render%20%7C%20Koyeb-430098?style=for-the-badge&logo=heroku&logoColor=white"/>
-</p>
-
-<p align="center">
-  <b>A powerful Telegram media search bot.</b><br/>
-  Search movies & files in PM or any group — paginated results, dual-database support,<br/>
-  auto-delete, broadcast, user tracking, and deep-link file delivery.
+  A powerful Telegram media search bot — search movies and files directly in PM or any group, with paginated results, auto-delete, broadcast, user tracking, and deep-link file delivery.
 </p>
 
 ---
 
 ## ✨ Features
 
-<table>
-<tr><td>💬 <b>PM Search</b></td><td>Type any name → paginated results → tap to receive instantly</td></tr>
-<tr><td>👥 <b>Group Search</b></td><td>Results in group → tap → file delivered to PM via deep-link</td></tr>
-<tr><td>🗄 <b>Dual Database</b></td><td>Optional second MongoDB — writes to DB2, searches DB2 first, falls back to DB1</td></tr>
-<tr><td>◀▶ <b>Pagination</b></td><td>PREV / NEXT with live counter — only the searcher can scroll their own results</td></tr>
-<tr><td>⏳ <b>Auto-Delete</b></td><td>Files auto-delete after configurable time to avoid copyright issues</td></tr>
-<tr><td>📌 <b>Save Reminder</b></td><td>Users prompted to forward to Saved Messages before deletion</td></tr>
-<tr><td>👤 <b>User Tracking</b></td><td>Every /start saved to DB — new users trigger log channel notification</td></tr>
-<tr><td>📢 <b>Broadcast</b></td><td>Send any message type to all users — live progress, cancel button, auto-cleanup blocked users</td></tr>
-<tr><td>📡 <b>Auto Index</b></td><td>Files posted in watched channels saved to DB instantly</td></tr>
-<tr><td>🌐 <b>Inline Mode</b></td><td>Search via <code>@bot query</code> in any chat</td></tr>
-<tr><td>🔒 <b>Force Subscribe</b></td><td>Require users to join a channel before access</td></tr>
-<tr><td>🌍 <b>Always Alive</b></td><td>Built-in aiohttp web server — no sleep on Render & Koyeb</td></tr>
-</table>
-
----
-
-## 🗄 Dual Database
-
-> Set `DATABASE_URI_2` to enable. Leave unset for normal single-DB mode — zero behaviour change.
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   Write Flow                        │
-│                                                     │
-│  New file / user  ──►  DB2 (if set)  ──►  DB1       │
-│                        (primary write)  (fallback)  │
-└─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│                   Search Flow                       │
-│                                                     │
-│  Query  ──►  DB2  ──► results? ──► YES  ──►  return │
-│                              └──► NO   ──►  DB1     │
-└─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│                  Delete / Count                     │
-│                                                     │
-│  /delete  ──►  removes from BOTH DBs                │
-│  /total   ──►  DB1 count + DB2 count combined       │
-└─────────────────────────────────────────────────────┘
-```
+| Feature | Description |
+|---|---|
+| 💬 **PM Search** | Type any name → paginated file buttons → tap to receive instantly |
+| 👥 **Group Search** | Results shown in group → tap → file delivered to your PM via deep-link |
+| 🔗 **Deep-Link Delivery** | Group buttons use `t.me/bot?start=<file_id>` — works even if user never started bot |
+| ◀▶ **Prev / Next Pages** | Pagination with live page counter — only the searcher can press PREV/NEXT |
+| 🗑 **Auto-Delete** | Files auto-delete after configurable time to avoid copyright issues |
+| 📌 **Save Reminder** | Users instructed to forward to Saved Messages before deletion |
+| 👤 **User Tracking** | Every `/start` user is saved to DB; new users trigger a log channel notification |
+| 📢 **Broadcast** | Send any message (text, photo, video, etc.) to all registered users |
+| 📡 **Auto Index** | New files posted in watched channels saved to DB instantly |
+| 🛠 **Admin Commands** | Full suite: `/index`, `/setskip`, `/total`, `/users`, `/broadcast`, `/delete`, `/channel`, `/logs` |
+| 🌐 **Inline Mode** | Search via `@bot query` in any chat |
+| 🔒 **Force Subscribe** | Optionally require users to join a channel before access |
+| 🌍 **Always Alive** | Built-in `aiohttp` web server — compatible with Render & Koyeb (no sleep) |
 
 ---
 
 ## 🖼 Preview
 
-<details>
-<summary><b>Group Search</b></summary>
-
+### Group Search
 ```
 User: Kumki
 
-🔎 Results for: Kumki
-📁 Found: 9 file(s)
-👇 Tap a file → you'll be taken to my PM where it will be sent!
+Bot:
+  🔎 Results for: Kumki
+  📁 Found: 9 file(s)
+  👇 Tap a file → you'll be taken to my PM where it will be sent!
 
-[1.59 GB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 1080p HEVC x…
-[1.38 GB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 720p x264 (D…
-[904.43 MB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 720p HEVC …
-
-◀ PREV   [🗂 1/2]   NEXT ▶
+  [1.59 GB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 1080p HEVC x…
+  [1.38 GB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 720p x264 (D…
+  [904.43 MB]- 🎬 -Kumki 2 (2025) Tamil HQ HDRip 720p HEVC …
+  ──────────────────────────────────────────
+  [🗂 1/2]   [NEXT ▶]
 ```
-</details>
 
-<details>
-<summary><b>File in PM</b></summary>
-
+### File Caption in PM
 ```
 🎬 Kumki 2 (2025) Tamil HQ HDRip 1080p HEVC x265.mkv
 📦 Size: 1.59 GB
@@ -98,51 +60,10 @@ User: Kumki
 ⚠️ This file will be auto-deleted in 5 minute(s) to avoid copyright issues.
 📌 Forward it to your Saved Messages to keep it forever!
 
-[ 💾 Save to Saved Messages ]
+[💾 Save to Saved Messages]
 ```
-</details>
 
-<details>
-<summary><b>Status Panel</b></summary>
-
-```
-╔══════════════════════╗
-      📊 Bot Status
-╚══════════════════════╝
-
-🤖 Bot: @YourBot
-🔗 Username: @yourbot
-
-━━━━━━━━━━━━━━━━━━━━━━
-📁 Total Files:  12,453
-👥 Total Users:   1,284
-━━━━━━━━━━━━━━━━━━━━━━
-
-🗄 Database:  🟡 Dual DB (DB1 + DB2)
-🟢 Status:  Online & Running
-```
-</details>
-
-<details>
-<summary><b>Broadcast Progress</b></summary>
-
-```
-📢 Broadcasting…
-
-[████░░░░░░] 40%
-Done: 400/1000
-
-✅ Sent: 385
-🚫 Blocked: 12  ← auto-removed from DB
-❌ Failed: 3
-
-[ ⛔ Cancel ]
-```
-</details>
-
-<details>
-<summary><b>New User Log</b></summary>
-
+### New User Notification in Log Channel
 ```
 👤 New User Started Bot!
 
@@ -153,46 +74,52 @@ Done: 400/1000
 
 👥 Total Users: 142
 ```
-</details>
+
+### Broadcast Progress
+```
+📢 Broadcasting…
+
+[████░░░░░░] 40%
+Done: 400/1000
+
+✅ Sent: 385
+🚫 Blocked: 12  ← auto-removed from DB
+❌ Failed: 3
+
+[⛔ Cancel]
+```
 
 ---
 
 ## 🚀 Deploy
 
-### ☁️ Heroku (Container Stack)
+### Heroku
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
-```bash
-# 1. Clone & push
-git clone https://github.com/GouthamSER/auto-filter-bot-v1
-cd auto-filter-bot-v1
-heroku create your-app-name
-heroku stack:set container -a your-app-name
+1. Click the button above
+2. Fill in the required environment variables
+3. Deploy — uses `heroku.yml` (container stack) → `web: python main.py`
 
-# 2. Set env vars (or use Heroku dashboard)
-heroku config:set API_ID=... API_HASH=... BOT_TOKEN=... -a your-app-name
+> **Note:** Switch your Heroku app to the container stack first:
+> ```bash
+> heroku stack:set container -a <your-app>
+> git push heroku main
+> ```
 
-# 3. Deploy
-git push heroku main
-```
+### Render / Koyeb
+1. Connect your GitHub repo
+2. Set **Start Command:** `python main.py`
+3. Set **Health Check URL:** `/health`
+4. Add all environment variables
+5. Deploy — the built-in web server keeps the container alive permanently
 
-### 🎨 Render / Koyeb
-
-| Setting | Value |
-|---|---|
-| **Start Command** | `python main.py` |
-| **Health Check** | `/health` |
-| **Build Command** | `pip install -r requirements.txt` |
-
-Add all env vars in the dashboard → Deploy.
-
-### 🖥️ VPS / Local
-
+### Manual / VPS
 ```bash
 git clone https://github.com/GouthamSER/auto-filter-bot-v1
 cd auto-filter-bot-v1
 pip install -r requirements.txt
 cp sample.env .env
-nano .env        # fill in your values
+# Edit .env with your values
 python main.py
 ```
 
@@ -200,71 +127,65 @@ python main.py
 
 ## ⚙️ Environment Variables
 
-### 🔴 Required
-
+### Required
 | Variable | Description |
 |---|---|
-| `API_ID` | From [my.telegram.org](https://my.telegram.org) |
-| `API_HASH` | From [my.telegram.org](https://my.telegram.org) |
-| `BOT_TOKEN` | From [@BotFather](https://t.me/BotFather) |
-| `DATABASE_URI` | MongoDB URI — `mongodb+srv://user:pass@cluster...` |
-| `ADMINS` | Space-separated user IDs — `123456 789012` |
-| `CHANNELS` | Space-separated channel IDs to watch — `-100123 -100456` |
-| `LOG_CHANNEL` | Channel ID for logs & new user alerts |
+| `API_ID` | Get from [my.telegram.org](https://my.telegram.org) |
+| `API_HASH` | Get from [my.telegram.org](https://my.telegram.org) |
+| `BOT_TOKEN` | Get from [@BotFather](https://t.me/BotFather) |
+| `DATABASE_URI` | MongoDB connection string (e.g. `mongodb+srv://...`) |
+| `ADMINS` | Space-separated Telegram user IDs — e.g. `123456 789012` |
+| `CHANNELS` | Space-separated channel IDs the bot watches — e.g. `-100123 -100456` |
+| `LOG_CHANNEL` | Channel ID for bot logs + new user notifications |
 
-### 🟡 Dual Database (Optional)
-
+### Optional
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URI_2` | — | Second MongoDB URI — **enables dual-DB mode** |
-| `DATABASE_NAME_2` | same as DB1 | Database name for DB2 |
-| `COLLECTION_NAME_2` | same as DB1 | Collection name for DB2 |
-
-### 🔵 Optional
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_NAME` | `MediaSearchDB` | DB1 database name |
-| `COLLECTION_NAME` | `tgfls` | DB1 collection name |
+| `DATABASE_NAME` | `MediaSearchDB` | MongoDB database name |
+| `COLLECTION_NAME` | `Telegram_files` | MongoDB collection name |
 | `SESSION` | `MediaSearchBot` | Pyrogram session name |
-| `MAX_RESULTS` | `10` | Files per page |
-| `CACHE_TIME` | `300` | Inline query cache (seconds) |
-| `USE_CAPTION_FILTER` | `false` | Search inside file captions too |
-| `AUTH_CHANNEL` | — | Channel ID users must join first |
-| `AUTH_USERS` | — | Extra whitelisted user IDs |
-| `URL` | — | App public URL for keep-alive self-ping |
-| `PORT` | `8080` | Web server port |
-| `START_MSG` | built-in | Custom start message (`{mention}` `{username}` `{first_name}`) |
-| `FORCE_SUB_MSG` | built-in | Custom force-subscribe message |
+| `MAX_RESULTS` | `10` | Files shown per page |
+| `AUTO_DELETE_TIME` | `300` | Seconds before file is deleted (300 = 5 min) |
+| `CACHE_TIME` | `300` | Inline query cache duration in seconds |
+| `USE_CAPTION_FILTER` | `false` | Also search inside file captions |
+| `AUTH_CHANNEL` | — | Force users to join this channel ID before using bot |
+| `URL` | — | Your app's public URL for keep-alive pings |
+| `PORT` | `8080` | Web server port (auto-set by Render/Koyeb/Heroku) |
+
+### Custom Messages (Optional)
+| Variable | Description |
+|---|---|
+| `START_MSG` | Custom welcome message. Supports `{mention}`, `{username}`, `{first_name}` |
+| `FORCE_SUB_MSG` | Message shown when user hasn't joined `AUTH_CHANNEL` |
 
 ---
 
 ## 🤖 Bot Commands
 
-### 👤 Users
-
+### Everyone
 | Command | Description |
 |---|---|
-| `/start` | Welcome message + search buttons |
+| `/start` | Welcome message + inline search buttons |
 
-> `Help` and `Status` are inline buttons on the start message.
+> 💡 `/help` and `/status` are available as **inline buttons** on the start message — not slash commands.
 
-### 🛠 Admins Only
-
+### Admins Only
 | Command | Description |
 |---|---|
-| `/index` | Bulk-index a channel (two-step wizard, no userbot needed) |
-| `/cancelindex` | Abort the index wizard |
-| `/setskip <N>` | Set message-ID offset before indexing |
-| `/total` | Total files in database (both DBs combined) |
-| `/users` | Total registered users |
-| `/broadcast` | Send any message to all users (reply or inline text) |
-| `/cancelbroadcast` | Stop a running broadcast |
-| `/channel` | List all watched channels |
-| `/delete` | Reply to any media → remove from database |
+| `/index` | Bulk-index a channel range (two-step wizard — no userbot needed) |
+| `/cancelindex` | Abort the index wizard mid-setup |
+| `/setskip <N>` | Set message-ID offset before indexing (resume from a specific point) |
+| `/total` | Total files saved in database |
+| `/users` | Total registered users count |
+| `/broadcast` | Send a message to all users (reply to any message, or inline text) |
+| `/cancelbroadcast` | Stop a running broadcast mid-way |
+| `/channel` | List all watched/indexed channels |
+| `/delete` | Reply to any media message → removes it from DB |
 | `/logs` | Download the bot log file |
 
-### 📋 BotFather — Paste to set commands
+### Setting Commands via BotFather
+
+Open [@BotFather](https://t.me/BotFather) → your bot → **Edit Bot** → **Edit Commands** → paste:
 
 ```
 start - Start the bot / get welcome message
@@ -280,26 +201,40 @@ delete - Remove a file from the database (reply to it)
 logs - Get the bot log file
 ```
 
-Or run the included script to set scoped commands
-(users see only `/start`, admins see full list):
+Or use the included script to set scoped commands automatically
+(regular users only see `/start`, admins see the full list):
 
 ```bash
 export BOT_TOKEN=your_token
-export ADMINS="123456789"
+export ADMINS="123456789 987654321"
 python set_commands.py
 ```
 
 ---
 
+## 📢 Broadcast Usage
+
+**Option 1 — Copy any message (photo, video, sticker, text…):**
+```
+Reply to any message with /broadcast
+```
+
+**Option 2 — Inline text only:**
+```
+/broadcast 🎉 New movies added! Go search now!
+```
+
+Bot shows a **preview with recipient count** and **Confirm / Cancel** buttons before sending. Live progress updates during send. Blocked/deactivated users are **automatically removed** from the database.
+
+---
+
 ## 🔍 Search Tips
 
-```
-Basic search       →  just type the name
-Filter by type     →  name | video   /   name | audio   /   name | document
-Inline anywhere    →  @YourBot movie name
-Pagination         →  ◀ PREV  [🗂 page/total]  NEXT ▶
-Group delivery     →  tap result → bot sends file to your PM
-```
+- **Basic:** type any movie or file name in PM or any group
+- **Filter by type:** `movie name | video` or `song name | audio` or `doc name | document`
+- **Inline anywhere:** `@YourBot movie name` in any chat
+- **Pagination:** tap **◀ PREV** / **NEXT ▶** to browse all results — only the user who searched can press these
+- **Group:** results appear in the group; tapping a file delivers it to your PM
 
 ---
 
@@ -307,44 +242,52 @@ Group delivery     →  tap result → bot sends file to your PM
 
 ```
 auto-filter-bot-v1/
-├── main.py                  ← Entry point + aiohttp keep-alive server
-├── config.py                ← All env var parsing
-├── set_commands.py          ← One-shot BotFather command scope setter
-├── Dockerfile               ← Container image
-├── heroku.yml               ← Heroku container stack config
+├── main.py                 ← Bot entry point + aiohttp web server + keep-alive
+├── config.py               ← All configuration via environment variables
+├── set_commands.py         ← One-shot script to set BotFather command scopes
 ├── requirements.txt
-├── sample.env
+├── Dockerfile              ← Docker image (used by Heroku container stack)
+├── heroku.yml              ← Heroku container stack config
+├── sample.env              ← Example environment variables
 │
 ├── database/
-│   └── db.py                ← Dual-DB motor driver (Media + Users)
+│   ├── __init__.py
+│   └── db.py               ← MongoDB motor (Media + Users collections)
 │
 └── plugins/
-    ├── start.py             ← /start · Help · Status · deep-link delivery
-    ├── search.py            ← PM & group search · pagination · auto-delete
-    ├── inline.py            ← Inline query handler
-    ├── channel.py           ← Auto-index files from watched channels
-    ├── users.py             ← User tracking + log channel notifications
-    ├── broadcast.py         ← /broadcast · progress · cancel · cleanup
-    └── admin.py             ← /index wizard + all admin commands
+    ├── __init__.py
+    ├── start.py            ← /start + deep-link file delivery + force-subscribe + help/status buttons
+    ├── search.py           ← PM & group search, pagination (owner-only), auto-delete
+    ├── inline.py           ← Inline mode search
+    ├── channel.py          ← Auto-index new files from watched channels
+    ├── users.py            ← User tracking + new user log channel notification
+    ├── broadcast.py        ← /broadcast with live progress + cancel + auto-cleanup
+    └── admin.py            ← /index wizard + all other admin commands
 ```
+
+---
+
+## 🗄 Database Collections
+
+| Collection | Purpose |
+|---|---|
+| `Telegram_files` | All indexed media files (searchable) |
+| `users` | All registered users — used for broadcast & analytics |
 
 ---
 
 ## 🛠 Tech Stack
 
-| Library | Purpose |
-|---|---|
-| [pyrotgfork](https://github.com/TelegramPlayGround/Pyrogram) | Telegram MTProto client (Pyrogram fork) |
-| [TgCrypto](https://github.com/pyrogram/tgcrypto) | Fast C crypto for Pyrogram |
-| [Motor](https://motor.readthedocs.io/) | Async MongoDB driver |
-| [PyMongo](https://pymongo.readthedocs.io/) | MongoDB sync utilities |
-| [aiohttp](https://docs.aiohttp.org/) | Async web server for keep-alive |
+- **[Pyrogram v2](https://github.com/pyrogram/pyrogram)** — Telegram MTProto client
+- **[Motor](https://motor.readthedocs.io/)** — Async MongoDB driver
+- **[aiohttp](https://docs.aiohttp.org/)** — Async web server (keep-alive for Render/Koyeb)
+- **[MongoDB Atlas](https://www.mongodb.com/atlas)** — Cloud database (free tier works)
 
 ---
 
 ## 👨‍💻 Credits
 
-| | |
+| Role | Person |
 |---|---|
 | **Maintainer & Rewritten By** | [GouthamSER](https://github.com/GouthamSER) |
 | Original Concept | Media-Search-bot |
@@ -353,13 +296,9 @@ auto-filter-bot-v1/
 
 ## 📄 License
 
-[MIT License](LICENSE) — free to use, modify, and distribute.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
-
-<p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=6C63FF&height=100&section=footer" width="100%"/>
-</p>
 
 <p align="center">
   Made with ❤️ by <a href="https://github.com/GouthamSER">GouthamSER</a>
