@@ -260,15 +260,20 @@ async def search_handler(bot: Client, message: Message):
     if not query:
         return
 
-    processing = await message.reply("🔍 <b>Searching…</b>")
-
+    processing = await message.reply("⚡ Processing Request\n\n🔎 Searching available files...\n⏳ This may take a few seconds.")
     files, _ = await get_search_results(query, file_type=file_type,
                                         max_results=MAX_RESULTS, offset=0)
     if not files:
         try:
             no_res = await processing.edit(
-                f"❌ <b>No results for</b> <code>{query}</code>\n\n"
-                "Try different keywords or check spelling."
+                f"🎬 No Matching Files Found\n\n"
+              f"🔍 Query: {query}\n\n"
+              "📂 This title is currently unavailable.\n\n"
+              "💡 Try:\n"
+              "• Movie name only\n"
+              "• Alternate title\n"
+              "• Release year\n"
+              "• Correct spelling"
             )
             if not in_pm:
                 asyncio.create_task(_schedule_delete(message, no_res, delay=30))
