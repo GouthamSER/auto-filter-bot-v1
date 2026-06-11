@@ -121,6 +121,7 @@ async def start(bot: Client, message: Message):
         return await message.reply(FORCE_SUB_MSG, reply_markup=InlineKeyboardMarkup(buttons))
 
     text = START_MSG.format(
+        uname      = bot.username.lstrip("@")
         mention    = user.mention,
         username   = bot.username.lstrip("@"),
         first_name = user.first_name,
@@ -136,6 +137,7 @@ async def start(bot: Client, message: Message):
 async def back_start_cb(bot: Client, query: CallbackQuery):
     user = query.from_user
     text = START_MSG.format(
+        uname      = bot.username.lstrip("@")
         mention    = user.mention,
         username   = bot.username.lstrip("@"),
         first_name = user.first_name,
