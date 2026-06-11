@@ -76,14 +76,12 @@ async def _get_invite(bot: Client) -> str:
 def _start_buttons() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Search Files", switch_inline_query_current_chat="")
+            InlineKeyboardButton("Update Channel ⚠", url='t.me/wudixh15'),
+            InlineKeyboardButton("Admin 👮‍♂️", url='t.me/im_goutham_josh')
         ],
         [
-            InlineKeyboardButton("Inline Search", switch_inline_query="")
-        ],
-        [
-            InlineKeyboardButton("Help", callback_data="help"),
-            InlineKeyboardButton("Stats", callback_data="status")
+            InlineKeyboardButton("Help ⚙", callback_data="help"),
+            InlineKeyboardButton("Stats 📊", callback_data="status")
         ]
     ])
 
@@ -112,7 +110,7 @@ async def start(bot: Client, message: Message):
                 reply_markup=InlineKeyboardMarkup(buttons),
             )
         from plugins.search import send_file_to_user
-        await message.reply("📤 <b>Fetching your file…</b>")
+        await message.answer("📤 <b>Fetching your file…</b>")
         await send_file_to_user(bot, user.id, args)
         return
 
@@ -156,29 +154,25 @@ async def back_start_cb(bot: Client, query: CallbackQuery):
 async def help_cb(bot: Client, query: CallbackQuery):
     uname = bot.username.lstrip("@")
     text = (
-        "<b>Help Center</b>\n"
-        "━━━━━━━━━━━━━━━\n\n"
+      "📚 Search Help \n"
+      "Movies: Movie Year → RRR 2022 Series: Name Sxx / SxxExx → Kurukshetra S01E05\n"
+      "Tip: add quality/lang → 1080p Tamil Hindi\n"
+      "🍿 Send your query now!"
+    )
+    await query.message.edit(
+        text,
+        reply_markup=_BACK,
+        disable_web_page_preview=True
+    )
 
-        "<b>Private Search</b>\n"
-        "Send any movie, series, audio, document or file name directly in this chat.\n\n"
-
-        "<b>Group Search</b>\n"
-        "Use inline mode from any group and receive files privately.\n\n"
-
-        "<b>Inline Mode</b>\n"
-        f"<code>@{uname} query</code>\n\n"
-
-        "<b>Available Filters</b>\n"
-        "<code>movie name | video</code>\n"
-        "<code>song name | audio</code>\n"
-        "<code>file name | document</code>\n\n"
-
-        "<b>Navigation</b>\n"
-        "Browse large result lists using Previous and Next buttons.\n\n"
-
-        "<b>Important</b>\n"
-        "Some files may be removed automatically after delivery.\n"
-        "Forward important files to Saved Messages for permanent access."
+@Client.on_message(filters.command("help") & filters.private)
+async def help_cb(bot: Client, query: CallbackQuery):
+    uname = bot.username.lstrip("@")
+    text = (
+      "📚 Search Help \n"
+      "Movies: Movie Year → RRR 2022 Series: Name Sxx / SxxExx → Kurukshetra S01E05\n"
+      "Tip: add quality/lang → 1080p Tamil Hindi\n"
+      "🍿 Send your query now!"
     )
     await query.message.edit(
         text,
