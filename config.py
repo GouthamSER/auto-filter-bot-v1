@@ -45,12 +45,16 @@ USE_CAPTION_FILTER  = environ.get("USE_CAPTION_FILTER", "false").lower() == "tru
 START_MSG = """
 <b>Welcome {mention}</b>
 
+<blockquote>{uname} — Media Search Bot 🤖</blockquote>
+
 This bot helps you search and receive files instantly.
 
-• Search directly in private chat
-• Use inline mode in groups
-• Fast file delivery
-• Smart filtering system
+Commands: • /start • /help
+
+<blockquote>Disclaimer 📌
+We only index Telegram files. We do not host content.</blockquote>
+
+Send your query to begin!
 
 Choose an option below to continue.
 """
