@@ -110,7 +110,7 @@ async def start(bot: Client, message: Message):
                 reply_markup=InlineKeyboardMarkup(buttons),
             )
         from plugins.search import send_file_to_user
-        await message.answer("📤 <b>Fetching your file…</b>")
+        #await message.reply("📤 <b>Fetching your file…</b>")
         await send_file_to_user(bot, user.id, args)
         return
 
@@ -167,21 +167,6 @@ async def help_cb(bot: Client, query: CallbackQuery):
         disable_web_page_preview=True
     )
 
-@Client.on_message(filters.command("help") & filters.private)
-async def help_cb(bot: Client, query: CallbackQuery):
-    uname = bot.username.lstrip("@")
-    text = (
-      "📚 Search Help \n"
-      "Movies: Movie Year → RRR 2022 Series: Name Sxx / SxxExx → Kurukshetra S01E05\n"
-      "Tip: add quality/lang → 1080p Tamil Hindi\n"
-      "🍿 Send your query now!"
-    )
-    await query.message.edit(
-        text,
-        reply_markup=_BACK,
-        disable_web_page_preview=True
-    )
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  📊 Status
 # ─────────────────────────────────────────────────────────────────────────────
@@ -209,3 +194,18 @@ async def status_cb(bot: Client, query: CallbackQuery):
         "<b>System Status:</b> Online"
     )
     await query.message.edit(text, reply_markup=_BACK)
+
+@Client.on_message(filters.command("help"))
+async def help_cb(bot: Client, query: CallbackQuery):
+    uname = bot.username.lstrip("@")
+    text = (
+      "📚 Search Help \n"
+      "Movies: Movie Year → RRR 2022 Series: Name Sxx / SxxExx → Kurukshetra S01E05\n"
+      "Tip: add quality/lang → 1080p Tamil Hindi\n"
+      "🍿 Send your query now!"
+    )
+    await query.message.edit(
+        text,
+        reply_markup=_BACK,
+        disable_web_page_preview=True
+    )
