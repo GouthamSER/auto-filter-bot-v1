@@ -196,7 +196,7 @@ async def status_cb(bot: Client, query: CallbackQuery):
     await query.message.edit(text, reply_markup=_BACK)
 
 @Client.on_message(filters.command("help"))
-async def help_cb(bot: Client, query: CallbackQuery):
+async def help_cmnd(bot: Client, query: CallbackQuery):
     uname = bot.username.lstrip("@")
     text = (
       "📚 Search Help \n"
@@ -204,8 +204,7 @@ async def help_cb(bot: Client, query: CallbackQuery):
       "Tip: add quality/lang → 1080p Tamil Hindi\n"
       "🍿 Send your query now!"
     )
-    await query.message.edit(
+    await query.message.reply(
         text,
-        reply_markup=_BACK,
         disable_web_page_preview=True
     )
